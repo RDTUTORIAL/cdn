@@ -1,32 +1,32 @@
 # CDN Panel
 
-Panel administrasi CDN untuk mengelola dan berbagi file. Dibangun dengan Next.js 16, TypeScript, dan React 19.
+A file management and sharing dashboard with role-based access control, public share links, analytics, and API key management. Built with Next.js 16, TypeScript, and React 19.
 
-## Fitur
+## Features
 
-- Upload, download, dan manage file
+- Upload, download, and manage files
 - Folder & tagging system
 - Starred / favorites
 - Trash / recycle bin
-- Public share links (dengan optional password & expiry)
+- Public share links (with optional password & expiry)
 - Role-based users (admin, editor, viewer)
-- API Keys untuk integrasi eksternal
-- Dashboard analytics & statistik
+- API Keys for external integrations
+- Dashboard analytics & statistics
 - Dark mode
-- Redis-backed rate limiting (login)
-- Supabase PostgreSQL support untuk production
+- Redis-backed rate limiting for login
+- Supabase PostgreSQL support for production
 
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router)
-- **Bahasa:** TypeScript
+- **Language:** TypeScript
 - **UI:** Custom CSS + Lucide icons
 - **Database:** Lowdb (local dev) / Supabase PostgreSQL (production)
 - **Storage:** Vercel Blob (production) / local filesystem (dev)
 - **Auth:** JWT (jose) + bcrypt
 - **Rate Limiting:** Upstash Redis
 
-## Mulai Cepat (Local Development)
+## Quick Start (Local Development)
 
 ```bash
 # Clone & install
@@ -34,15 +34,15 @@ git clone <repo-url>
 cd cdn
 npm install
 
-# Siapkan environment
+# Setup environment
 cp .env.example .env
-# Edit .env (minimal: JWT_SECRET)
+# Edit .env (minimum: JWT_SECRET)
 
-# Jalankan development
+# Run development
 npm run dev
 ```
 
-Buka [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
 ### Default Login
 
@@ -50,99 +50,85 @@ Buka [http://localhost:3000](http://localhost:3000).
 |----------|-----------|-------|
 | `admin`  | `admin`   | admin |
 
-> **Warning:** Ganti password default sebelum production!
+> **Warning:** Change the default password before production!
 
-## Deploy ke Vercel (Production)
+## Deploy to Vercel (Production)
 
 ### 1. Import Project
-- Buka [vercel.com](https://vercel.com) → Add New Project
-- Pilih repo `RDTUTORIAL/cdn`
+- Go to [vercel.com](https://vercel.com) → Add New Project
+- Select the `RDTUTORIAL/cdn` repository
 
-### 2. Environment Variables (Wajib)
+### 2. Environment Variables (Required)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `JWT_SECRET` | **Wajib** | Secret key untuk JWT token. Generate: `openssl rand -hex 32` |
-| `BLOB_READ_WRITE_TOKEN` | **Wajib** | Token Vercel Blob. [Dapatkan di sini](https://vercel.com/dashboard/stores/blob) |
-| `REDIS_URL` atau `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Opsional | Upstash Redis untuk rate limiting login. Tanpa ini, rate limiter dinonaktifkan |
-| `NEXT_PUBLIC_SUPABASE_URL` | Opsional tapi **direkomendasikan** | Supabase project URL. Kalau tidak di-set, data tersimpan in-memory (hilang tiap deploy) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Opsional | Supabase service role key (wajib kalau pakai Supabase) |
+| `JWT_SECRET` | **Required** | Secret key for JWT tokens. Generate with: `openssl rand -hex 32` |
+| `BLOB_READ_WRITE_TOKEN` | **Required** | Vercel Blob token. [Get it here](https://vercel.com/dashboard/stores/blob) |
+| `REDIS_URL` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Optional | Upstash Redis for login rate limiting. Without this, rate limiting is disabled |
+| `NEXT_PUBLIC_SUPABASE_URL` | Optional but **recommended** | Supabase project URL. Without this, data is stored in-memory (lost on redeploy) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional | Supabase service role key (required if using Supabase) |
 
-### 3. Supabase Setup (Direkomendasikan untuk Production)
+### 3. Supabase Setup (Recommended for Production)
 
-1. Buat project di [supabase.com](https://supabase.com)
-2. Jalankan SQL di `lib/supabase/schema.sql` ke Supabase SQL Editor
-3. Isi env vars `NEXT_PUBLIC_SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy pertama kali, lalu akses `POST /api/migrate` untuk migrasi data default
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the SQL in `lib/supabase/schema.sql` in the Supabase SQL Editor
+3. Fill in `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars
+4. After first deploy, access `POST /api/migrate` to migrate default data
 
 ### 4. Deploy
 
-Klik **Deploy** di Vercel. Setiap push ke `main` akan auto-deploy.
+Click **Deploy** on Vercel. Every push to `main` will auto-deploy.
 
-## Environment Variables Detail
+## Environment Variables
 
 ### `JWT_SECRET`
-- **Wajib di production.** Kalau kosong di production, app akan crash saat startup
-- Generate dengan: `openssl rand -hex 32`
+- **Required in production.** The app will crash on startup if missing
+- Generate with: `openssl rand -hex 32`
 
 ### `BLOB_READ_WRITE_TOKEN`
-- **Wajib di production.** Vercel filesystem read-only, jadi tidak bisa simpan file lokal
-- Dapatkan dari Vercel Dashboard → Blob Stores
+- **Required in production.** Vercel's filesystem is read-only, so local file storage won't work
+- Get it from Vercel Dashboard → Blob Stores
 
 ### `REDIS_URL` (Format: `redis://default:PASSWORD@HOST:PORT`)
-- Opsional. Kalau tidak di-set, rate limiter login dinonaktifkan
-- Dapatkan dari [Upstash Console](https://console.upstash.com)
-- Alternatif: pakai `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (format REST API)
+- Optional. If not set, login rate limiting is disabled
+- Get it from [Upstash Console](https://console.upstash.com)
+- Alternative: use `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (REST API format)
 
 ### Supabase Variables
-- `NEXT_PUBLIC_SUPABASE_URL`: URL project Supabase
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Anonymous key (untuk client, belum dipakai)
-- `SUPABASE_SERVICE_ROLE_KEY`: Service role key (untuk server-side DB operations)
+- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Anonymous key (for client-side, not currently used)
+- `SUPABASE_SERVICE_ROLE_KEY`: Service role key (for server-side database operations)
 
 ## Database
 
 ### Development (Default)
-**Lowdb** — file JSON di `data/db.json`. Auto-dibuat saat pertama kali jalan.
+**Lowdb** — JSON file at `data/db.json`. Auto-created on first run.
 
-### Production (Direkomendasikan)
-**Supabase PostgreSQL** — persistent, scalable, bisa di-query SQL.
+### Production (Recommended)
+**Supabase PostgreSQL** — persistent, scalable, queryable with SQL.
 
-Kalau Supabase tidak dikonfigurasi di production:
-- Data tersimpan **in-memory** (RAM)
-- Data **hilang** tiap kali serverless instance cold start
-- Cukup untuk demo/testing, tapi **tidak direkomendasikan** untuk production
+If Supabase is not configured in production:
+- Data is stored **in-memory** (RAM)
+- Data is **lost** on every serverless cold start
+- Suitable for demos/testing, but **not recommended** for production
 
-## Keamanan
+## Security
 
-- JWT token dengan secret environment variable
-- bcrypt untuk password hashing
-- Rate limiting login (5 percobaan / 15 menit) via Redis
-- Path traversal guard pada file storage
-- Ownership checks pada semua CRUD endpoints
-- Cookie HttpOnly + Secure (production only)
-- File password di-hash dengan bcrypt
+- JWT tokens with environment variable secret
+- bcrypt for password hashing
+- Login rate limiting (5 attempts / 15 minutes) via Redis
+- Path traversal guard on file storage
+- Ownership checks on all CRUD endpoints
+- HttpOnly + Secure cookies (production only)
+- File passwords hashed with bcrypt
 
-## Troubleshooting Deploy
-
-### Error: `ENOENT: no such file or directory, mkdir '/var/task/data'`
-**Penyebab:** Vercel filesystem read-only, Lowdb tidak bisa bikin folder.  
-**Fix:** Konfigurasi Supabase atau set `BLOB_READ_WRITE_TOKEN`.
-
-### Error: `JWT_SECRET environment variable is required in production`
-**Penyebab:** `JWT_SECRET` tidak di-set di Vercel Environment Variables.  
-**Fix:** Generate secret dan tambahkan ke Vercel Dashboard.
-
-### Error: `BLOB_READ_WRITE_TOKEN is required in production`
-**Penyebab:** Upload file di production tanpa Vercel Blob.  
-**Fix:** Dapatkan token dari Vercel Blob Store atau konfigurasi storage eksternal.
-
-## Struktur Project
+## Project Structure
 
 ```
 app/              Routes & API
 components/       UI Components
 lib/              Logic & utilities
-  auth.ts         JWT auth (export SECRET untuk middleware)
+  auth.ts         JWT auth (exports SECRET for middleware)
   db.ts           Lowdb adapter + Supabase auto-detect
   db-supabase.ts  Supabase adapter + Lowdb Adapter interface
   redis.ts        Upstash Redis rate limiter
