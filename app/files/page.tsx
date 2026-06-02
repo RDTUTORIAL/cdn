@@ -68,8 +68,18 @@ export default function FilesPage() {
         filesRes.json(),
         foldersRes.json(),
       ]);
+      if (!filesRes.ok || !foldersRes.ok) {
+        showToast(filesData.error || foldersData.error || "Gagal memuat file", "error");
+        return;
+      }
       setFiles(filesData.files || []);
       setFolders(foldersData.folders || []);
+      setSelected((prev) => {
+        const visibleIds = new Set((filesData.files || []).map((file: FileRecord) => file.id));
+        return new Set([...prev].filter((id) => visibleIds.has(id)));
+      });
+    } catch {
+      showToast("Gagal memuat file", "error");
     } finally {
       setLoading(false);
     }
@@ -116,8 +126,9 @@ export default function FilesPage() {
 
   async function handleDelete(fileId: string) {
     const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) { showToast("File dipindah ke sampah", "success"); fetchData(); }
-    else showToast("Gagal hapus file", "error");
+    else showToast(data.error || "Gagal hapus file", "error");
     setCtx(null);
   }
 
@@ -209,7 +220,7 @@ export default function FilesPage() {
   function getContextMenuItems(file: FileRecord) {
     return [
       { label: "Preview", icon: <Eye size={14} />, onClick: () => setPreviewFile(file) },
-      { label: "Download", icon: <Download size={14} />, onClick: () => { window.open(`${file.blobUrl}`, "_blank"); } },
+      { label: "Download", icon: <Download size={14} />, onClick: () => { window.open(`/api/files/${file.id}/download`, "_blank"); } },
       { label: "Copy Link", icon: <LinkIcon size={14} />, onClick: () => copyLink(file) },
       { label: "Bagikan", icon: <Share size={14} />, onClick: () => setShareFile(file) },
       { divider: true, label: "", icon: null, onClick: () => {} },

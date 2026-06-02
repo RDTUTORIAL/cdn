@@ -57,7 +57,7 @@ export default function FilePreview({ file, isOpen, onClose, onDownload }: FileP
             <div style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 24 }}>
               Preview tidak tersedia untuk format ini
             </div>
-            <a href={f.blobUrl} download={f.name} className="btn btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <a href={`/api/files/${f.id}/download`} download={f.name} className="btn btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Download size={16} /> Download File
             </a>
           </div>
@@ -72,7 +72,7 @@ export default function FilePreview({ file, isOpen, onClose, onDownload }: FileP
       footer={
         <div style={{ display: "flex", gap: 8, width: "100%" }}>
           <a
-            href={`${file.blobUrl}`}
+            href={`/api/files/${file.id}/download`}
             download={file.name}
             className="btn btn-primary"
             onClick={() => onDownload?.(file)}

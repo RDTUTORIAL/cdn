@@ -9,7 +9,9 @@ export default function TrashPage() {
   const { showToast } = useToast();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
@@ -17,8 +19,14 @@ export default function TrashPage() {
     (async () => {
       const res = await fetch("/api/files?deleted=true", { signal: controller.signal });
       if (cancelled) return;
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!cancelled) {
+        if (!res.ok) {
+          showToast(data.error || "Gagal memuat sampah", "error");
+          setFiles([]);
+          setLoading(false);
+          return;
+        }
         setFiles(data.files || []);
         setLoading(false);
       }
@@ -36,42 +44,82 @@ export default function TrashPage() {
 
   async function load() {
     const res = await fetch("/api/files?deleted=true");
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error || "Gagal memuat sampah", "error");
+      return;
+    }
     setFiles(data.files || []);
   }
 
   async function restore(id: string) {
-    const res = await fetch(`/api/files/${id}/restore`, { method: "POST" });
-    if (res.ok) {
-      showToast("File dipulihkan", "success");
-      load();
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/files/${id}/restore`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("File dipulihkan", "success");
+        await load();
+      } else {
+        showToast(data.error || "Gagal memulihkan file", "error");
+      }
+    } catch {
+      showToast("Gagal memulihkan file", "error");
+    } finally {
+      setActionPending(false);
     }
   }
 
   async function deletePermanent(id: string) {
     if (!confirm("Hapus permanen? File tidak bisa dipulihkan.")) return;
-    const res = await fetch(`/api/files/${id}?permanent=true`, { method: "DELETE" });
-    if (res.ok) {
-      showToast("File dihapus permanen", "success");
-      load();
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/files/${id}?permanent=true`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("File dihapus permanen", "success");
+        await load();
+      } else {
+        showToast(data.error || "Gagal hapus file", "error");
+      }
+    } catch {
+      showToast("Gagal hapus file", "error");
+    } finally {
+      setActionPending(false);
     }
   }
 
   async function emptyTrash() {
+    if (files.length === 0) return;
     if (!confirm(`Kosongkan sampah? ${files.length} file akan dihapus permanen.`)) return;
-    const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })));
-    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
-    if (failed > 0) showToast(`${failed} file gagal dihapus`, "error");
-    else showToast("Sampah dikosongkan", "success");
-    load();
+    setActionPending(true);
+    try {
+      const res = await fetch("/api/files?deleted=true", { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast(`${data.deleted ?? 0} file dihapus permanen`, "success");
+        setFiles([]);
+      } else {
+        showToast(data.error || "Gagal mengosongkan sampah", "error");
+      }
+    } catch {
+      showToast("Gagal mengosongkan sampah", "error");
+    } finally {
+      setActionPending(false);
+    }
   }
 
   async function restoreAll() {
-    const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}/restore`, { method: "POST" })));
-    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
-    if (failed > 0) showToast(`${failed} file gagal dipulihkan`, "error");
-    else showToast("Semua file dipulihkan", "success");
-    load();
+    setActionPending(true);
+    try {
+      const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}/restore`, { method: "POST" })));
+      const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+      if (failed > 0) showToast(`${failed} file gagal dipulihkan`, "error");
+      else showToast("Semua file dipulihkan", "success");
+      await load();
+    } finally {
+      setActionPending(false);
+    }
   }
 
   return (
@@ -87,10 +135,10 @@ export default function TrashPage() {
         </div>
         {files.length > 0 && (
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary" onClick={restoreAll} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button className="btn btn-secondary" onClick={restoreAll} disabled={actionPending} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <RefreshCcw size={16} /> Pulihkan Semua
             </button>
-            <button className="btn btn-danger" onClick={emptyTrash} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button className="btn btn-danger" onClick={emptyTrash} disabled={actionPending} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Trash size={16} /> Kosongkan Sampah
             </button>
           </div>
@@ -144,10 +192,10 @@ export default function TrashPage() {
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => restore(f.id)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => restore(f.id)} disabled={actionPending} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <RefreshCcw size={14} /> Pulihkan
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => deletePermanent(f.id)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button className="btn btn-danger btn-sm" onClick={() => deletePermanent(f.id)} disabled={actionPending} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Trash size={14} /> Hapus
                       </button>
                     </div>

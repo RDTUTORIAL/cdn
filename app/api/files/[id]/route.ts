@@ -135,6 +135,13 @@ export async function DELETE(
   }
 
   if (permanent) {
+    if (!file.isDeleted) {
+      return NextResponse.json(
+        { error: "File harus dipindahkan ke sampah sebelum dihapus permanen" },
+        { status: 400 }
+      );
+    }
+
     // Delete from blob storage
     await deleteFromBlob(file.blobUrl);
     db.data.files.splice(fileIndex, 1);

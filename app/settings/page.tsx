@@ -60,15 +60,10 @@ export default function SettingsPage() {
 
   async function dangerEmptyTrash() {
     if (!confirm("Kosongkan semua sampah? File tidak bisa dipulihkan.")) return;
-    const res = await fetch("/api/files?deleted=true");
-    const data = await res.json();
-    const trashFiles = data.files || [];
-    const results = await Promise.allSettled(trashFiles.map((f: { id: string }) =>
-      fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })
-    ));
-    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
-    if (failed > 0) showToast(`${failed} file gagal dihapus`, "error");
-    else showToast("Sampah dikosongkan", "success");
+    const res = await fetch("/api/files?deleted=true", { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) showToast(`${data.deleted ?? 0} file dihapus permanen`, "success");
+    else showToast(data.error || "Gagal mengosongkan sampah", "error");
   }
 
   if (loading) return <div className="page-body" style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>Memuat...</div>;

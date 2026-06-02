@@ -17,7 +17,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   if (!session) redirect("/login");
 
   const db = await getDb();
-  const trashCount = db.data.files.filter((f) => f.isDeleted).length;
+  const trashCount = db.data.files.filter(
+    (f) => f.isDeleted && (session.role === "admin" || f.ownerId === session.userId)
+  ).length;
 
   return (
     <ToastProvider>

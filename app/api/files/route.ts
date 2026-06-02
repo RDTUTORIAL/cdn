@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
 import { canManageContent } from "@/lib/permissions";
-import { uploadToBlob, generateFilePath } from "@/lib/storage";
+import { uploadToBlob, generateFilePath, deleteFromBlob } from "@/lib/storage";
 import { generateId, generateUniqueSlug, getMimeType, generateSlug } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -181,4 +181,53 @@ export async function POST(request: NextRequest) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Upload gagal" }, { status: 500 });
   }
+}
+
+// DELETE - permanently empty trash for the current scope
+export async function DELETE(request: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canManageContent(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { searchParams } = request.nextUrl;
+  if (searchParams.get("deleted") !== "true") {
+    return NextResponse.json(
+      { error: "Gunakan deleted=true untuk mengosongkan sampah" },
+      { status: 400 }
+    );
+  }
+
+  const db = await getDb();
+  const filesToDelete = db.data.files.filter(
+    (file) => file.isDeleted && (session.role === "admin" || file.ownerId === session.userId)
+  );
+
+  if (filesToDelete.length === 0) {
+    return NextResponse.json({ success: true, deleted: 0 });
+  }
+
+  await Promise.all(filesToDelete.map((file) => deleteFromBlob(file.blobUrl)));
+
+  const deletedIds = new Set(filesToDelete.map((file) => file.id));
+  db.data.files = db.data.files.filter((file) => !deletedIds.has(file.id));
+
+  db.data.activityLog.unshift({
+    id: generateId(),
+    userId: session.userId,
+    action: "empty_trash",
+    targetId: "",
+    targetName: `${filesToDelete.length} file`,
+    timestamp: new Date().toISOString(),
+  });
+  if (db.data.activityLog.length > 500) {
+    db.data.activityLog = db.data.activityLog.slice(0, 500);
+  }
+
+  await saveDb();
+
+  return NextResponse.json({ success: true, deleted: filesToDelete.length });
 }
