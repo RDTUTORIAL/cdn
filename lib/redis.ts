@@ -5,13 +5,41 @@ const WINDOW_SECONDS = 15 * 60; // 15 minutes
 
 let redis: Redis | null = null;
 
+function parseRedisUrl(redisUrl: string): { url: string; token: string } | null {
+  try {
+    // Format: redis://default:PASSWORD@HOST:PORT
+    const parsed = new URL(redisUrl);
+    const token = decodeURIComponent(parsed.password || "");
+    const host = parsed.hostname;
+    if (!token || !host) return null;
+    return { url: `https://${host}`, token };
+  } catch {
+    return null;
+  }
+}
+
 function getRedis(): Redis | null {
   if (redis) return redis;
+
+  // Option 1: REDIS_URL (redis://... connection string)
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    const parsed = parseRedisUrl(redisUrl);
+    if (parsed) {
+      redis = new Redis(parsed);
+      return redis;
+    }
+  }
+
+  // Option 2: Upstash REST API (separate url + token)
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  redis = new Redis({ url, token });
-  return redis;
+  if (url && token) {
+    redis = new Redis({ url, token });
+    return redis;
+  }
+
+  return null;
 }
 
 export async function checkRateLimit(key: string, prefix = "ratelimit"): Promise<boolean> {
