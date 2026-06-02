@@ -101,6 +101,103 @@ function activityFromDb(row: Record<string, unknown>): ActivityLog {
   };
 }
 
+function userToDb(u: User): Record<string, unknown> {
+  return {
+    id: u.id,
+    username: u.username,
+    password: u.password,
+    role: u.role,
+    created_at: u.createdAt,
+    api_keys: u.apiKeys,
+  };
+}
+
+function folderToDb(f: FolderRecord): Record<string, unknown> {
+  return {
+    id: f.id,
+    name: f.name,
+    slug: f.slug,
+    parent_id: f.parentId,
+    owner_id: f.ownerId,
+    is_public: f.isPublic,
+    is_deleted: f.isDeleted,
+    deleted_at: f.deletedAt,
+    created_at: f.createdAt,
+    updated_at: f.updatedAt,
+  };
+}
+
+function fileToDb(f: FileRecord): Record<string, unknown> {
+  return {
+    id: f.id,
+    name: f.name,
+    slug: f.slug,
+    original_name: f.originalName,
+    mime_type: f.mimeType,
+    size: f.size,
+    blob_url: f.blobUrl,
+    folder_id: f.folderId,
+    owner_id: f.ownerId,
+    is_public: f.isPublic,
+    password: f.password,
+    expires_at: f.expiresAt,
+    tags: f.tags,
+    is_favorited: f.isFavorited,
+    is_deleted: f.isDeleted,
+    deleted_at: f.deletedAt,
+    download_count: f.downloadCount,
+    view_count: f.viewCount,
+    created_at: f.createdAt,
+    updated_at: f.updatedAt,
+  };
+}
+
+function tagToDb(t: Tag): Record<string, unknown> {
+  return {
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    owner_id: t.ownerId,
+  };
+}
+
+function settingsToDb(settings: Settings): Record<string, unknown> {
+  return {
+    id: 1,
+    site_name: settings.siteName,
+    max_file_size_mb: settings.maxFileSizeMB,
+    allowed_types: settings.allowedTypes,
+    storage_quota_mb: settings.storageQuotaMB,
+    public_base_url: settings.publicBaseUrl,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function settingsFingerprint(settings: Settings): string {
+  return JSON.stringify({
+    siteName: settings.siteName,
+    maxFileSizeMB: settings.maxFileSizeMB,
+    allowedTypes: settings.allowedTypes,
+    storageQuotaMB: settings.storageQuotaMB,
+    publicBaseUrl: settings.publicBaseUrl,
+  });
+}
+
+function activityToDb(a: ActivityLog): Record<string, unknown> {
+  return {
+    id: a.id,
+    user_id: a.userId,
+    action: a.action,
+    target_id: a.targetId,
+    target_name: a.targetName,
+    timestamp: a.timestamp,
+  };
+}
+
+function cloneData(data: Data): Data {
+  return structuredClone(data);
+}
+
 // ─── Public API ───
 
 /**
@@ -218,6 +315,77 @@ async function pruneSupabaseToSnapshot(data: Data): Promise<void> {
   await deleteRowsMissingFromSnapshot("tags", new Set(data.tags.map((t) => t.id)));
   await deleteRowsMissingFromSnapshot("folders", new Set(data.folders.map((f) => f.id)));
   await deleteRowsMissingFromSnapshot("users", new Set(data.users.map((u) => u.id)));
+}
+
+async function deleteRemovedRows<T extends { id: string }>(
+  table: string,
+  previousRows: T[],
+  nextRows: T[]
+): Promise<void> {
+  const nextIds = new Set(nextRows.map((row) => row.id));
+  const removedRows = previousRows.filter((row) => !nextIds.has(row.id));
+
+  for (const row of removedRows) {
+    const { error } = await supabase.from(table).delete({ id: row.id });
+    if (error) throw error;
+  }
+}
+
+async function upsertChangedRows<T extends { id: string }>(
+  table: string,
+  previousRows: T[],
+  nextRows: T[],
+  toDb: (row: T) => Record<string, unknown>
+): Promise<void> {
+  const previousById = new Map(
+    previousRows.map((row) => [row.id, JSON.stringify(toDb(row))])
+  );
+  const changedRows = nextRows
+    .map((row) => ({ row, payload: toDb(row) }))
+    .filter(({ row, payload }) => previousById.get(row.id) !== JSON.stringify(payload))
+    .map(({ payload }) => payload);
+
+  if (changedRows.length === 0) return;
+
+  const { error } = await supabase.from(table).upsert(changedRows);
+  if (error) throw error;
+}
+
+async function writeDiffToSupabase(
+  previousData: Data | null,
+  nextData: Data
+): Promise<boolean> {
+  if (!previousData) {
+    return migrateToSupabase(nextData, { prune: true });
+  }
+
+  try {
+    // Delete before upsert, and child tables before parents.
+    await deleteRemovedRows("files", previousData.files, nextData.files);
+    await deleteRemovedRows("activity_log", previousData.activityLog, nextData.activityLog);
+    await deleteRemovedRows("tags", previousData.tags, nextData.tags);
+    await deleteRemovedRows("folders", previousData.folders, nextData.folders);
+    await deleteRemovedRows("users", previousData.users, nextData.users);
+
+    // Upsert parents before children.
+    await upsertChangedRows("users", previousData.users, nextData.users, userToDb);
+    await upsertChangedRows("folders", previousData.folders, nextData.folders, folderToDb);
+    await upsertChangedRows("files", previousData.files, nextData.files, fileToDb);
+    await upsertChangedRows("tags", previousData.tags, nextData.tags, tagToDb);
+    await upsertChangedRows("activity_log", previousData.activityLog, nextData.activityLog, activityToDb);
+
+    const previousSettings = settingsFingerprint(previousData.settings);
+    const nextSettings = settingsToDb(nextData.settings);
+    if (previousSettings !== settingsFingerprint(nextData.settings)) {
+      const { error } = await supabase.from("settings").upsert([nextSettings]);
+      if (error) throw error;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("[supabase] Diff write failed:", err);
+    return false;
+  }
 }
 
 /**
@@ -353,13 +521,18 @@ export async function migrateToSupabase(
 
 /**
  * Lowdb adapter that persists to Supabase.
- * Every write() syncs the entire Data object to Supabase via upsert.
+ * Runtime write() applies a row-level diff instead of syncing the whole snapshot.
  * Suitable for small-to-medium datasets. For large datasets, consider
  * migrating API routes to direct Supabase queries.
  */
 export class SupabaseAdapter implements Adapter<Data> {
+  private previousData: Data | null = null;
+  private writeQueue: Promise<void> = Promise.resolve();
+
   async read(): Promise<Data | null> {
-    return readAllFromSupabase();
+    const data = await readAllFromSupabase();
+    this.previousData = data ? cloneData(data) : null;
+    return data;
   }
 
   async write(data: Data): Promise<void> {
@@ -367,9 +540,20 @@ export class SupabaseAdapter implements Adapter<Data> {
       console.warn("[supabase] write() called but Supabase is not configured");
       return;
     }
-    const ok = await migrateToSupabase(data, { prune: true });
-    if (!ok) {
-      console.error("[supabase] Adapter write failed");
-    }
+
+    const snapshot = cloneData(data);
+    const run = this.writeQueue
+      .catch(() => undefined)
+      .then(async () => {
+        const ok = await writeDiffToSupabase(this.previousData, snapshot);
+        if (!ok) {
+          console.error("[supabase] Adapter write failed");
+          return;
+        }
+        this.previousData = cloneData(snapshot);
+      });
+
+    this.writeQueue = run.catch(() => undefined);
+    await run;
   }
 }
