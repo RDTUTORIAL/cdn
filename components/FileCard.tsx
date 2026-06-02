@@ -15,7 +15,7 @@ interface FileCardProps {
 
 function getThumb(file: FileRecord) {
   const cat = getFileCategory(file.mimeType);
-  if (cat === "image") return file.blobUrl;
+  if (cat === "image") return `/api/files/${file.id}/content`;
   return null;
 }
 
@@ -77,7 +77,7 @@ export default function FileCard({
         <div className="file-row-icon">
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={file.blobUrl} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={thumb} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <span className="flex-center">{iconElement(20)}</span>
           )}
@@ -135,7 +135,7 @@ export default function FileCard({
       <div className="file-card-thumb">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={file.blobUrl} alt={file.name} loading="lazy" />
+          <img src={thumb} alt={file.name} loading="lazy" />
         ) : (
           <span className="file-card-thumb-icon flex-center">{iconElement(40)}</span>
         )}

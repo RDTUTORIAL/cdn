@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFile, stat } from "fs/promises";
 import { getSession } from "@/lib/auth";
-import { getFreshDb, saveDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import { isBlobUrl, readFromBlob } from "@/lib/storage";
 import { deliveryHeaders, resolveUploadPath } from "@/lib/content-delivery";
-import { readFile, stat } from "fs/promises";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
   const { id } = await params;
+  const session = await getSession();
   const db = await getFreshDb();
   const file = db.data.files.find((f) => f.id === id && !f.isDeleted);
 
@@ -20,53 +20,50 @@ export async function GET(
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
   }
 
-  // Check access: public files, password-protected files (via slug), or owner/admin
   const isOwner = session && (session.role === "admin" || file.ownerId === session.userId);
   if (!file.isPublic && !isOwner) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (isBlobUrl(file.blobUrl)) {
-    const result = await readFromBlob(file.blobUrl, _request.headers.get("if-none-match"));
-    if (!result || result.statusCode === 304) {
+    const result = await readFromBlob(file.blobUrl, request.headers.get("if-none-match"));
+    if (!result) {
       return NextResponse.json({ error: "File tidak ditemukan di storage" }, { status: 404 });
     }
 
-    file.downloadCount += 1;
-    await saveDb();
+    if (result.statusCode === 304) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ...(result.etag ? { ETag: result.etag } : {}),
+          "Cache-Control": "private, no-cache",
+        },
+      });
+    }
 
     return new NextResponse(result.stream, {
-      status: 200,
       headers: deliveryHeaders({
         mimeType: file.mimeType || result.contentType,
         filename: file.name,
-        isPublic: false,
-        forceDownload: true,
+        isPublic: file.isPublic,
         etag: result.etag,
       }),
     });
   }
 
-  // Local file — read and serve with Content-Disposition: attachment
   try {
     const fullPath = resolveUploadPath(file.blobUrl);
     if (!fullPath) {
       return NextResponse.json({ error: "Path file tidak valid" }, { status: 400 });
     }
-
     const fileStat = await stat(fullPath);
     const buffer = await readFile(fullPath);
 
-    file.downloadCount += 1;
-    await saveDb();
-
     return new NextResponse(buffer, {
-      status: 200,
       headers: deliveryHeaders({
         mimeType: file.mimeType,
         filename: file.name,
-        isPublic: false,
-        forceDownload: true,
+        isPublic: file.isPublic,
         contentLength: fileStat.size,
       }),
     });

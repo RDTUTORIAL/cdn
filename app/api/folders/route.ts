@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageContent } from "@/lib/permissions";
 import { generateId, generateUniqueSlug } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const parentId = searchParams.get("parentId");
 
-  const db = await getDb();
+  const db = await getFreshDb();
   let folders = db.data.folders.filter((f) => !f.isDeleted);
 
   if (session.role !== "admin") {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nama folder wajib diisi" }, { status: 400 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
 
   // Validate parentId belongs to user
   if (parentId && !db.data.folders.find((f) => f.id === parentId && f.ownerId === session.userId && !f.isDeleted)) {

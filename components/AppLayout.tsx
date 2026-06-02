@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import { ToastProvider } from "@/components/Toast";
 import Sidebar from "@/components/Sidebar";
 
@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const trashCount = db.data.files.filter(
     (f) => f.isDeleted && (session.role === "admin" || f.ownerId === session.userId)
   ).length;

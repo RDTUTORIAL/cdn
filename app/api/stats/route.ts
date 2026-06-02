@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import { formatBytes } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const files = db.data.files.filter((f) => !f.isDeleted);
   const totalSize = files.reduce((acc, f) => acc + f.size, 0);
   const publicFiles = files.filter((f) => f.isPublic).length;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 
 export async function GET() {
   const session = await getSession();
@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === session.userId);
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

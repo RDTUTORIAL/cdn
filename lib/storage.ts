@@ -1,4 +1,4 @@
-import { put, del, head } from "@vercel/blob";
+import { put, del, get, head } from "@vercel/blob";
 import { writeFile, mkdir, unlink, stat } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -7,6 +7,12 @@ export interface UploadResult {
   url: string;
   pathname: string;
   size: number;
+}
+
+type BlobAccess = "public" | "private";
+
+function getBlobAccess(): BlobAccess {
+  return process.env.BLOB_ACCESS === "public" ? "public" : "private";
 }
 
 /**
@@ -108,13 +114,29 @@ async function localHead(
   }
 }
 
+function getBlobPathname(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return new URL(url).pathname.replace(/^\/+/, "");
+  }
+
+  return url.replace(/^\/+/, "");
+}
+
+export function isBlobUrl(url: string): boolean {
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+export function getFileDeliveryUrl(fileId: string): string {
+  return `/api/files/${fileId}/content`;
+}
+
 export async function uploadToBlob(
   file: File,
   path: string
 ): Promise<UploadResult> {
   if (isBlobConfigured()) {
     const blob = await put(path, file, {
-      access: "public",
+      access: getBlobAccess(),
       addRandomSuffix: false,
     });
     return {
@@ -144,7 +166,7 @@ export async function uploadBufferToBlob(
 ): Promise<UploadResult> {
   if (isBlobConfigured()) {
     const blob = await put(path, buffer, {
-      access: "public",
+      access: getBlobAccess(),
       addRandomSuffix: false,
       contentType,
     });
@@ -191,6 +213,35 @@ export async function getBlobInfo(url: string) {
   } catch {
     return null;
   }
+}
+
+export async function readFromBlob(
+  url: string,
+  ifNoneMatch?: string | null
+): Promise<
+  | { statusCode: 200; stream: ReadableStream; contentType: string; etag?: string }
+  | { statusCode: 304; etag?: string }
+  | null
+> {
+  if (!isBlobUrl(url)) return null;
+
+  const result = await get(getBlobPathname(url), {
+    access: getBlobAccess(),
+    ifNoneMatch: ifNoneMatch ?? undefined,
+  });
+
+  if (!result) return null;
+  if (result.statusCode === 304) {
+    return { statusCode: 304, etag: result.blob.etag };
+  }
+  if (result.statusCode !== 200 || !result.stream) return null;
+
+  return {
+    statusCode: 200,
+    stream: result.stream,
+    contentType: result.blob.contentType || "application/octet-stream",
+    etag: result.blob.etag,
+  };
 }
 
 export function generateFilePath(ownerId: string, filename: string): string {

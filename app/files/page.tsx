@@ -35,6 +35,7 @@ export default function FilesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showUpload, setShowUpload] = useState(false);
   const [uploadPublic, setUploadPublic] = useState(false);
+  const [actionPending, setActionPending] = useState(false);
 
   // Modals
   const [previewFile, setPreviewFile] = useState<FileRecord | null>(null);
@@ -125,27 +126,44 @@ export default function FilesPage() {
   }
 
   async function handleDelete(fileId: string) {
-    const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) { showToast("File dipindah ke sampah", "success"); fetchData(); }
-    else showToast(data.error || "Gagal hapus file", "error");
-    setCtx(null);
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("File dipindah ke sampah", "success");
+        await fetchData();
+      } else {
+        showToast(data.error || "Gagal hapus file", "error");
+      }
+      setCtx(null);
+    } finally {
+      setActionPending(false);
+    }
   }
 
   async function handleBulkDelete() {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || actionPending) return;
     if (!confirm(`Hapus ${selected.size} file ke sampah?`)) return;
-    const results = await Promise.allSettled(
-      [...selected].map((id) => fetch(`/api/files/${id}`, { method: "DELETE" }))
-    );
-    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
-    if (failed > 0) {
-      showToast(`${failed} file gagal dihapus`, "error");
-    } else {
-      showToast(`${selected.size} file dihapus`, "success");
+    setActionPending(true);
+    let failed = 0;
+    const ids = [...selected];
+    try {
+      for (const id of ids) {
+        const res = await fetch(`/api/files/${id}`, { method: "DELETE" }).catch(() => null);
+        if (!res?.ok) failed += 1;
+      }
+      if (failed > 0) {
+        showToast(`${failed} file gagal dihapus`, "error");
+      } else {
+        showToast(`${ids.length} file dihapus`, "success");
+      }
+      setSelected(new Set());
+      await fetchData();
+    } finally {
+      setActionPending(false);
     }
-    setSelected(new Set());
-    fetchData();
   }
 
   async function handleFavorite(file: FileRecord) {
@@ -346,7 +364,7 @@ export default function FilesPage() {
           <>
             <div className="toolbar-sep" />
             <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.size} dipilih</span>
-            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} style={{ display: "flex", alignItems: "center", gap: 4 }}><Trash2 size={14} /> Hapus</button>
+            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={actionPending} style={{ display: "flex", alignItems: "center", gap: 4 }}><Trash2 size={14} /> Hapus</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Batal</button>
           </>
         )}

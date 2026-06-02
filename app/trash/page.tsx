@@ -110,10 +110,14 @@ export default function TrashPage() {
   }
 
   async function restoreAll() {
+    if (files.length === 0 || actionPending) return;
     setActionPending(true);
+    let failed = 0;
     try {
-      const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}/restore`, { method: "POST" })));
-      const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+      for (const file of files) {
+        const res = await fetch(`/api/files/${file.id}/restore`, { method: "POST" }).catch(() => null);
+        if (!res?.ok) failed += 1;
+      }
       if (failed > 0) showToast(`${failed} file gagal dipulihkan`, "error");
       else showToast("Semua file dipulihkan", "success");
       await load();

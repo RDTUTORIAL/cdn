@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageContent } from "@/lib/permissions";
 import { generateApiKey, generateId } from "@/lib/utils";
 
@@ -11,7 +11,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canManageContent(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -23,7 +23,7 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canManageContent(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -52,7 +52,7 @@ export async function DELETE(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { key } = await request.json();
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 

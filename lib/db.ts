@@ -38,6 +38,16 @@ const defaultData: Data = {
 
 let db: Low<Data> | null = null;
 
+function normalizeData(data: Data): void {
+  data.users ??= [];
+  data.files ??= [];
+  data.folders ??= [];
+  data.tags ??= [];
+  data.settings ??= defaultData.settings;
+  data.activityLog ??= [];
+  data.sessions ??= [];
+}
+
 export async function getDb(): Promise<Low<Data>> {
   if (db) return db;
 
@@ -48,13 +58,7 @@ export async function getDb(): Promise<Low<Data>> {
     db = new Low<Data>(adapter, defaultData);
     await db.read();
     db.data ??= defaultData;
-    db.data.users ??= [];
-    db.data.files ??= [];
-    db.data.folders ??= [];
-    db.data.tags ??= [];
-    db.data.settings ??= defaultData.settings;
-    db.data.activityLog ??= [];
-    db.data.sessions ??= [];
+    normalizeData(db.data);
     return db;
   }
 
@@ -71,13 +75,7 @@ export async function getDb(): Promise<Low<Data>> {
     await db.read();
 
     db.data ??= defaultData;
-    db.data.users ??= [];
-    db.data.files ??= [];
-    db.data.folders ??= [];
-    db.data.tags ??= [];
-    db.data.settings ??= defaultData.settings;
-    db.data.activityLog ??= [];
-    db.data.sessions ??= [];
+    normalizeData(db.data);
 
     return db;
   } catch (err) {
@@ -91,6 +89,18 @@ export async function getDb(): Promise<Low<Data>> {
 
     return db;
   }
+}
+
+export async function getFreshDb(): Promise<Low<Data>> {
+  const current = await getDb();
+
+  if (isSupabaseAvailable()) {
+    await current.read();
+    current.data ??= defaultData;
+    normalizeData(current.data);
+  }
+
+  return current;
 }
 
 export async function saveDb(): Promise<void> {

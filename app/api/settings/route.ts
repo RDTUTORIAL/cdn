@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = await getDb();
+  const db = await getFreshDb();
   return NextResponse.json({ settings: db.data.settings });
 }
 
@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest) {
   if (session.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const db = await getDb();
+  const db = await getFreshDb();
   const allowedFields: (keyof typeof db.data.settings)[] = [
     "siteName", "maxFileSizeMB", "allowedTypes", "storageQuotaMB", "publicBaseUrl",
   ];

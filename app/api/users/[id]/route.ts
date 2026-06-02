@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { deleteFromBlob } from "@/lib/storage";
 import { generateId } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === id);
   if (!user) {
     return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
@@ -101,7 +101,7 @@ export async function DELETE(
     );
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const userIndex = db.data.users.findIndex((u) => u.id === id);
   if (userIndex === -1) {
     return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });

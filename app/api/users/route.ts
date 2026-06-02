@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const users = db.data.users.map((u) => ({
     id: u.id,
     username: u.username,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Password minimal 4 karakter" }, { status: 400 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const existing = db.data.users.find(
     (u) => u.username.toLowerCase() === username.trim().toLowerCase()
   );

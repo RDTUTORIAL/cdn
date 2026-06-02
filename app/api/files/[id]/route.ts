@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageOwnedContent } from "@/lib/permissions";
 import { deleteFromBlob } from "@/lib/storage";
 import { generateId, generateUniqueSlug } from "@/lib/utils";
@@ -23,7 +23,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const file = db.data.files.find((f) => f.id === id);
 
   if (!file) {
@@ -48,7 +48,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const file = db.data.files.find((f) => f.id === id);
 
   if (!file) {
@@ -121,7 +121,7 @@ export async function DELETE(
   const { searchParams } = request.nextUrl;
   const permanent = searchParams.get("permanent") === "true";
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const fileIndex = db.data.files.findIndex((f) => f.id === id);
 
   if (fileIndex === -1) {

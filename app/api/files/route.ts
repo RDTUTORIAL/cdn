@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageContent } from "@/lib/permissions";
 import { uploadToBlob, generateFilePath, deleteFromBlob } from "@/lib/storage";
 import { generateId, generateUniqueSlug, getMimeType, generateSlug } from "@/lib/utils";
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const order = searchParams.get("order") || "desc";
   const showDeleted = searchParams.get("deleted") === "true";
 
-  const db = await getDb();
+  const db = await getFreshDb();
 
   let files = db.data.files.filter((f) => {
     if (showDeleted) return f.isDeleted;
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   if (!ownerId) {
     const apiKey = request.headers.get("x-api-key");
     if (apiKey) {
-      const db = await getDb();
+      const db = await getFreshDb();
       const user = db.data.users.find((u) => u.apiKeys.includes(apiKey));
       if (user) {
         ownerId = user.id;
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const settings = db.data.settings;
 
   try {
@@ -201,7 +201,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const filesToDelete = db.data.files.filter(
     (file) => file.isDeleted && (session.role === "admin" || file.ownerId === session.userId)
   );

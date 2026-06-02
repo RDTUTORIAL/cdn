@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import { formatBytes, getFileCategory, getFileCategoryIcon, timeAgo } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { TrendingUp, Folder, HardDrive, Download, Eye, Calendar, Folders, List, Pin, Upload, Trash2, Trash, RefreshCcw, Edit, Key } from "lucide-react";
@@ -20,8 +20,11 @@ const actionIcons: Record<string, React.ReactNode> = {
 export default async function AnalyticsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const db = await getDb();
-  const files = db.data.files.filter((f) => !f.isDeleted);
+  const db = await getFreshDb();
+  const canSeeAll = session.role === "admin";
+  const files = db.data.files.filter(
+    (f) => !f.isDeleted && (canSeeAll || f.ownerId === session.userId)
+  );
   const totalSize = files.reduce((a, f) => a + f.size, 0);
   const totalDl = files.reduce((a, f) => a + f.downloadCount, 0);
   const totalViews = files.reduce((a, f) => a + f.viewCount, 0);
@@ -48,7 +51,9 @@ export default async function AnalyticsPage() {
     typeMap[cat].size += f.size;
   });
 
-  const activity = db.data.activityLog.slice(0, 30);
+  const activity = db.data.activityLog
+    .filter((log) => canSeeAll || log.userId === session.userId)
+    .slice(0, 30);
   const maxBar = Math.max(...uploadsPerDay.map((d) => d.count), 1);
 
   return (

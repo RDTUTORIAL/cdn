@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageContent, canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const tags = session.role === "admin"
     ? db.data.tags
     : db.data.tags.filter((t) => t.ownerId === session.userId);
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nama tag wajib diisi" }, { status: 400 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const tag = {
     id: generateId(),
     name: name.trim(),
@@ -45,7 +45,7 @@ export async function DELETE(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await request.json();
-  const db = await getDb();
+  const db = await getFreshDb();
   const tag = db.data.tags.find((t) => t.id === id);
   if (!tag) return NextResponse.json({ error: "Tag tidak ditemukan" }, { status: 404 });
   if (!canManageOwnedContent(session, tag.ownerId)) {

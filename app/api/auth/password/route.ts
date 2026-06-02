@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 
 export async function PUT(request: NextRequest) {
   const session = await getSession();
@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
   }
 
-  const db = await getDb();
+  const db = await getFreshDb();
   const user = db.data.users.find((u) => u.id === session.userId);
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ export async function POST(
   }
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const file = db.data.files.find((f) => f.id === id);
 
   if (!file) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import { signToken, createAuthCookie } from "@/lib/auth";
 import { checkRateLimit, resetRateLimit } from "@/lib/redis";
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = await getDb();
+    const db = await getFreshDb();
     const user = db.data.users.find(
       (u) => u.username.toLowerCase() === username.toLowerCase()
     );

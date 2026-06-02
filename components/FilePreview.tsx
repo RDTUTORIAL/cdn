@@ -16,20 +16,21 @@ export default function FilePreview({ file, isOpen, onClose, onDownload }: FileP
   if (!file) return null;
   const category = getFileCategory(file.mimeType);
   const publicUrl = buildPublicUrl(file.slug);
+  const contentUrl = `/api/files/${file.id}/content`;
 
   function renderContent(f: FileRecord) {
     switch (category) {
       case "image":
         return (
           <div className="preview-content" style={{ padding: 16, background: "var(--bg-base)", borderRadius: "var(--r-md)" }}>
-            <img src={f.blobUrl} alt={f.name} style={{ maxWidth: "100%", maxHeight: "65vh", objectFit: "contain", borderRadius: "var(--r-md)" }} />
+            <img src={contentUrl} alt={f.name} style={{ maxWidth: "100%", maxHeight: "65vh", objectFit: "contain", borderRadius: "var(--r-md)" }} />
           </div>
         );
       case "video":
         return (
           <div className="preview-content">
             <video controls style={{ maxWidth: "100%", maxHeight: "65vh" }}>
-              <source src={f.blobUrl} type={f.mimeType} />
+              <source src={contentUrl} type={f.mimeType} />
             </video>
           </div>
         );
@@ -39,14 +40,14 @@ export default function FilePreview({ file, isOpen, onClose, onDownload }: FileP
             <div style={{ marginBottom: 16, color: "var(--text-secondary)" }}><Music size={64} /></div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "var(--text-primary)" }}>{f.name}</div>
             <audio controls style={{ width: "100%" }}>
-              <source src={f.blobUrl} type={f.mimeType} />
+              <source src={contentUrl} type={f.mimeType} />
             </audio>
           </div>
         );
       case "pdf":
         return (
           <div className="preview-content" style={{ height: "65vh" }}>
-            <iframe src={f.blobUrl} style={{ width: "100%", height: "100%", border: "none", borderRadius: "var(--r-md)" }} title={f.name} />
+            <iframe src={contentUrl} style={{ width: "100%", height: "100%", border: "none", borderRadius: "var(--r-md)" }} title={f.name} />
           </div>
         );
       default:

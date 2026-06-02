@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getFreshDb } from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TrendingUp, Upload, Folder, HardDrive, Download, Folders, List, Pin, Trash2, Trash, RefreshCcw, Edit, Key, Clock } from "lucide-react";
@@ -7,15 +7,24 @@ import { formatBytes, getFileCategory, getFileCategoryIcon, timeAgo } from "@/li
 
 export const metadata = { title: "Dashboard — CDN Panel" };
 
-async function getStats() {
-  const db = await getDb();
-  const files = db.data.files.filter((f) => !f.isDeleted);
+async function getStats(session: { userId: string; role: string }) {
+  const db = await getFreshDb();
+  const canSeeAll = session.role === "admin";
+  const files = db.data.files.filter(
+    (f) => !f.isDeleted && (canSeeAll || f.ownerId === session.userId)
+  );
   const totalSize = files.reduce((a, f) => a + f.size, 0);
   const publicFiles = files.filter((f) => f.isPublic).length;
   const totalDl = files.reduce((a, f) => a + f.downloadCount, 0);
-  const folders = db.data.folders.filter((f) => !f.isDeleted).length;
-  const recentActivity = db.data.activityLog.slice(0, 8);
-  const trashCount = db.data.files.filter((f) => f.isDeleted).length;
+  const folders = db.data.folders.filter(
+    (f) => !f.isDeleted && (canSeeAll || f.ownerId === session.userId)
+  ).length;
+  const recentActivity = db.data.activityLog
+    .filter((log) => canSeeAll || log.userId === session.userId)
+    .slice(0, 8);
+  const trashCount = db.data.files.filter(
+    (f) => f.isDeleted && (canSeeAll || f.ownerId === session.userId)
+  ).length;
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -48,7 +57,7 @@ const actionIcons: Record<string, React.ReactNode> = {
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const stats = await getStats();
+  const stats = await getStats(session);
   const maxBar = Math.max(...stats.uploadsPerDay.map((d) => d.count), 1);
 
   return (
@@ -187,7 +196,7 @@ export default async function DashboardPage() {
                     justifyContent: "center", fontSize: 16, flexShrink: 0,
                   }}>
                     {getFileCategory(f.mimeType) === "image" ? (
-                      <img src={f.blobUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+                      <img src={`/api/files/${f.id}/content`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
                     ) : (
                       (() => { const Icon = getFileCategoryIcon(getFileCategory(f.mimeType)); return <Icon size={16} />; })()
                     )}

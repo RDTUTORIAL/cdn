@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
 import { canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const folder = db.data.folders.find((f) => f.id === id);
   if (!folder) return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
 
@@ -46,7 +46,7 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
   const folder = db.data.folders.find((f) => f.id === id);
   if (!folder) return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
 

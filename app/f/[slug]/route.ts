@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getDb, saveDb } from "@/lib/db";
+import { getFreshDb, saveDb } from "@/lib/db";
+import { isBlobUrl, readFromBlob } from "@/lib/storage";
 import { isExpired } from "@/lib/utils";
+import { deliveryHeaders, resolveUploadPath } from "@/lib/content-delivery";
+import { readFile, stat } from "fs/promises";
 
 export const runtime = "nodejs";
 
@@ -10,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const db = await getDb();
+  const db = await getFreshDb();
 
   const file = db.data.files.find(
     (f) => f.slug === slug && !f.isDeleted
@@ -126,21 +129,51 @@ export async function GET(
 
   await saveDb();
 
-  // Build target URL — handle both absolute Blob URLs and local storage paths
-  let targetUrl: string;
-  if (file.blobUrl.startsWith("http://") || file.blobUrl.startsWith("https://")) {
-    // Vercel Blob: append download param if needed
-    targetUrl = download ? `${file.blobUrl}?download=1` : file.blobUrl;
-  } else {
-    // Local storage: build absolute URL
-    const base = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-    if (download) {
-      // Serve via API that forces Content-Disposition: attachment
-      targetUrl = `${base}/api/files/${file.id}/download`;
-    } else {
-      targetUrl = file.blobUrl.startsWith("/") ? `${base}${file.blobUrl}` : `${base}/${file.blobUrl}`;
+  if (isBlobUrl(file.blobUrl)) {
+    const result = await readFromBlob(file.blobUrl, request.headers.get("if-none-match"));
+    if (!result) {
+      return new NextResponse("File tidak ditemukan di storage", { status: 404 });
     }
+
+    if (result.statusCode === 304) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ...(result.etag ? { ETag: result.etag } : {}),
+          "Cache-Control": "private, no-cache",
+        },
+      });
+    }
+
+    return new NextResponse(result.stream, {
+      headers: deliveryHeaders({
+        mimeType: file.mimeType || result.contentType,
+        filename: file.name,
+        isPublic: file.isPublic,
+        forceDownload: download,
+        etag: result.etag,
+      }),
+    });
   }
 
-  return NextResponse.redirect(targetUrl);
+  try {
+    const fullPath = resolveUploadPath(file.blobUrl);
+    if (!fullPath) {
+      return new NextResponse("Path file tidak valid", { status: 400 });
+    }
+    const fileStat = await stat(fullPath);
+    const buffer = await readFile(fullPath);
+
+    return new NextResponse(buffer, {
+      headers: deliveryHeaders({
+        mimeType: file.mimeType,
+        filename: file.name,
+        isPublic: file.isPublic,
+        forceDownload: download,
+        contentLength: fileStat.size,
+      }),
+    });
+  } catch {
+    return new NextResponse("File tidak ditemukan di storage", { status: 404 });
+  }
 }
