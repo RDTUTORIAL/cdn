@@ -5,7 +5,7 @@ const secretStr = process.env.JWT_SECRET;
 if (!secretStr && process.env.NODE_ENV === "production") {
   throw new Error("JWT_SECRET environment variable is required in production");
 }
-const SECRET = new TextEncoder().encode(secretStr || "dev-secret-do-not-use-in-production");
+export const SECRET = new TextEncoder().encode(secretStr || "dev-secret-do-not-use-in-production");
 
 const COOKIE_NAME = "cdn_token";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days

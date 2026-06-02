@@ -6,6 +6,7 @@
 
 import { supabase, isSupabaseAvailable } from "./supabase/admin";
 import type { User, FileRecord, FolderRecord, Tag, Settings, ActivityLog } from "./types";
+import type { Adapter } from "lowdb";
 
 export interface Data {
   users: User[];
@@ -309,5 +310,30 @@ export async function migrateToSupabase(data: Data): Promise<boolean> {
   } catch (err) {
     console.error("[supabase] Migration failed:", err);
     return false;
+  }
+}
+
+// ─── Lowdb Adapter ───
+
+/**
+ * Lowdb adapter that persists to Supabase.
+ * Every write() syncs the entire Data object to Supabase via upsert.
+ * Suitable for small-to-medium datasets. For large datasets, consider
+ * migrating API routes to direct Supabase queries.
+ */
+export class SupabaseAdapter implements Adapter<Data> {
+  async read(): Promise<Data | null> {
+    return readAllFromSupabase();
+  }
+
+  async write(data: Data): Promise<void> {
+    if (!isSupabaseAvailable()) {
+      console.warn("[supabase] write() called but Supabase is not configured");
+      return;
+    }
+    const ok = await migrateToSupabase(data);
+    if (!ok) {
+      console.error("[supabase] Adapter write failed");
+    }
   }
 }

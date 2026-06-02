@@ -3,6 +3,8 @@ import { mkdirSync, existsSync } from "fs";
 import { Low } from "lowdb";
 import { JSONFile } from "lowdb/node";
 import { Memory } from "lowdb";
+import { SupabaseAdapter } from "./db-supabase";
+import { isSupabaseAvailable } from "./supabase/admin";
 import type { User, FileRecord, FolderRecord, Tag, Settings, ActivityLog } from "./types";
 
 // Re-export types for server-side convenience
@@ -39,10 +41,24 @@ let db: Low<Data> | null = null;
 export async function getDb(): Promise<Low<Data>> {
   if (db) return db;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // ─── Option 1: Supabase (production recommended) ───
+  if (isSupabaseAvailable()) {
+    console.log("[db] Using Supabase adapter");
+    const adapter = new SupabaseAdapter();
+    db = new Low<Data>(adapter, defaultData);
+    await db.read();
+    db.data ??= defaultData;
+    db.data.users ??= [];
+    db.data.files ??= [];
+    db.data.folders ??= [];
+    db.data.tags ??= [];
+    db.data.settings ??= defaultData.settings;
+    db.data.activityLog ??= [];
+    db.data.sessions ??= [];
+    return db;
+  }
 
-  // Try filesystem first (local development)
+  // ─── Option 2: Local filesystem (development) ───
   try {
     const dataDir = join(process.cwd(), "data");
     if (!existsSync(dataDir)) {
@@ -65,15 +81,9 @@ export async function getDb(): Promise<Low<Data>> {
 
     return db;
   } catch (err) {
-    // Filesystem not writable (Vercel, serverless, read-only environments)
+    // ─── Option 3: In-memory fallback (serverless without Supabase) ───
     console.warn("[db] Filesystem not writable — falling back to in-memory database. Data will NOT persist between requests!");
-
-    if (supabaseUrl && supabaseKey) {
-      console.warn("[db] Supabase env vars detected but full integration not yet implemented. All routes still use Lowdb.");
-      console.warn("[db] To use Supabase, migrate API routes to use lib/db-supabase.ts instead of lib/db.ts");
-    } else {
-      console.warn("[db] For persistent data in production, configure Supabase (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY) and migrate routes to lib/db-supabase.ts");
-    }
+    console.warn("[db] For persistent data in production, configure Supabase (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)");
 
     const adapter = new Memory<Data>();
     db = new Low<Data>(adapter, defaultData);

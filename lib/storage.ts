@@ -124,6 +124,13 @@ export async function uploadToBlob(
     };
   }
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[storage] BLOB_READ_WRITE_TOKEN is required in production (Vercel filesystem is read-only). " +
+      "Get your token at https://vercel.com/dashboard/stores/blob"
+    );
+  }
+
   console.warn(
     "[storage] BLOB_READ_WRITE_TOKEN not set — using local filesystem storage. Uploaded files go to public/uploads/."
   );
@@ -146,6 +153,13 @@ export async function uploadBufferToBlob(
       pathname: blob.pathname,
       size: buffer.length,
     };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[storage] BLOB_READ_WRITE_TOKEN is required in production (Vercel filesystem is read-only). " +
+      "Get your token at https://vercel.com/dashboard/stores/blob"
+    );
   }
 
   console.warn(

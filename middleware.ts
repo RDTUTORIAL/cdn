@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "cdn-panel-super-secret-key-change-in-production"
-);
+import { SECRET } from "@/lib/auth";
 
 const COOKIE_NAME = "cdn_token";
 
