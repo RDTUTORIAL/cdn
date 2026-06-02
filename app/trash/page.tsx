@@ -25,6 +25,7 @@ export default function TrashPage() {
     })().catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error(err);
+      setLoading(false);
     });
 
     return () => {
@@ -58,14 +59,18 @@ export default function TrashPage() {
 
   async function emptyTrash() {
     if (!confirm(`Kosongkan sampah? ${files.length} file akan dihapus permanen.`)) return;
-    await Promise.all(files.map((f) => fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })));
-    showToast("Sampah dikosongkan", "success");
+    const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })));
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    if (failed > 0) showToast(`${failed} file gagal dihapus`, "error");
+    else showToast("Sampah dikosongkan", "success");
     load();
   }
 
   async function restoreAll() {
-    await Promise.all(files.map((f) => fetch(`/api/files/${f.id}/restore`, { method: "POST" })));
-    showToast("Semua file dipulihkan", "success");
+    const results = await Promise.allSettled(files.map((f) => fetch(`/api/files/${f.id}/restore`, { method: "POST" })));
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    if (failed > 0) showToast(`${failed} file gagal dipulihkan`, "error");
+    else showToast("Semua file dipulihkan", "success");
     load();
   }
 

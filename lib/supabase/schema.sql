@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS files (
   mime_type TEXT NOT NULL,
   size BIGINT NOT NULL,
   blob_url TEXT NOT NULL,
-  folder_id TEXT,
+  folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
   owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   is_public BOOLEAN NOT NULL DEFAULT false,
   password TEXT,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS folders (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   slug TEXT NOT NULL,
-  parent_id TEXT,
+  parent_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
   owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   is_public BOOLEAN NOT NULL DEFAULT false,
   is_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -86,6 +86,8 @@ CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
 CREATE INDEX IF NOT EXISTS idx_files_deleted ON files(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_files_slug ON files(slug);
 CREATE INDEX IF NOT EXISTS idx_folders_owner ON folders(owner_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_tags_owner ON tags(owner_id);
 CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity_log(timestamp DESC);
 
@@ -126,4 +128,4 @@ CREATE POLICY "Everyone can read settings" ON settings FOR SELECT USING (true);
 -- Activity log
 CREATE POLICY "Users can read own activity" ON activity_log FOR SELECT USING (user_id = auth.uid()::text);
 CREATE POLICY "Admins can read all activity" ON activity_log FOR SELECT USING ((SELECT role FROM users WHERE id = auth.uid()::text) = 'admin');
-CREATE POLICY "System can insert activity" ON activity_log FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated can insert activity" ON activity_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');

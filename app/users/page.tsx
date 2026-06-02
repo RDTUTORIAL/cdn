@@ -69,6 +69,7 @@ export default function UsersPage() {
     })().catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error(err);
+      setLoading(false);
     });
 
     return () => {
@@ -406,9 +407,7 @@ export default function UsersPage() {
                 <option value="editor">✏️ Editor</option>
                 <option value="admin">👑 Admin</option>
               </select>
-              {editUser.id === editUser.id && (
-                <span className="form-hint">Mengubah role diri sendiri ke non-admin tidak diperbolehkan</span>
-              )}
+              <span className="form-hint">Mengubah role user ke non-admin mungkin tidak bisa jika user adalah admin</span>
             </div>
           </div>
         )}

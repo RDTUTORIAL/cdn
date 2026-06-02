@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDb } from "@/lib/db";
 import { signToken, createAuthCookie } from "@/lib/auth";
+import { checkRateLimit, resetRateLimit } from "@/lib/redis";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+
+    const allowed = await checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." },
+        { status: 429 }
+      );
+    }
+
     const { username, password } = await request.json();
 
     if (!username || !password) {
@@ -33,6 +44,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    await resetRateLimit(ip);
 
     const token = await signToken({
       userId: user.id,

@@ -26,6 +26,7 @@ export default function ApiKeysPage() {
     })().catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error(err);
+      setLoading(false);
     });
 
     return () => {

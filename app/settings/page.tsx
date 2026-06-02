@@ -27,7 +27,7 @@ export default function SettingsPage() {
     fetch("/api/settings").then((r) => r.json()).then((d) => {
       if (d.settings) setSettings(d.settings);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   async function saveSettings() {
@@ -63,8 +63,12 @@ export default function SettingsPage() {
     const res = await fetch("/api/files?deleted=true");
     const data = await res.json();
     const trashFiles = data.files || [];
-    await Promise.all(trashFiles.map((f: { id: string }) => fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })));
-    showToast("Sampah dikosongkan", "success");
+    const results = await Promise.allSettled(trashFiles.map((f: { id: string }) =>
+      fetch(`/api/files/${f.id}?permanent=true`, { method: "DELETE" })
+    ));
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    if (failed > 0) showToast(`${failed} file gagal dihapus`, "error");
+    else showToast("Sampah dikosongkan", "success");
   }
 
   if (loading) return <div className="page-body" style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>Memuat...</div>;

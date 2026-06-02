@@ -23,6 +23,14 @@ export async function POST(
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
   }
 
+  if (session.role !== "admin" && file.ownerId !== session.userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!file.isDeleted) {
+    return NextResponse.json({ error: "File tidak ada di sampah" }, { status: 400 });
+  }
+
   file.isDeleted = false;
   file.deletedAt = null;
   file.updatedAt = new Date().toISOString();

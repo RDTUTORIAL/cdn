@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TrendingUp, Upload, Folder, HardDrive, Download, Folders, List, Pin, Trash2, Trash, RefreshCcw, Edit, Key, Clock } from "lucide-react";
 import { formatBytes, getFileCategory, getFileCategoryIcon, timeAgo } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ const actionIcons: Record<string, React.ReactNode> = {
 
 export default async function DashboardPage() {
   const session = await getSession();
+  if (!session) redirect("/login");
   const stats = await getStats();
   const maxBar = Math.max(...stats.uploadsPerDay.map((d) => d.count), 1);
 

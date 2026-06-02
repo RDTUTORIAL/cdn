@@ -110,7 +110,10 @@ export default function UploadZone({ folderId, isPublic = false, onUploaded, onT
     }
 
     setUploading(false);
-    onToast?.(`${totalCount} file berhasil diupload`, "success");
+    const successCount = files.filter((f) => f.status === "done").length;
+    if (successCount > 0) {
+      onToast?.(`${successCount} file berhasil diupload`, "success");
+    }
     onUploaded?.();
 
     // Clear done items after 2s

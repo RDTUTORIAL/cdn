@@ -10,7 +10,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const db = await getDb();
-  return NextResponse.json({ tags: db.data.tags });
+  const tags = session.role === "admin"
+    ? db.data.tags
+    : db.data.tags.filter((t) => t.ownerId === session.userId);
+  return NextResponse.json({ tags });
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +44,11 @@ export async function DELETE(request: NextRequest) {
 
   const { id } = await request.json();
   const db = await getDb();
+  const tag = db.data.tags.find((t) => t.id === id);
+  if (!tag) return NextResponse.json({ error: "Tag tidak ditemukan" }, { status: 404 });
+  if (session.role !== "admin" && tag.ownerId !== session.userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   db.data.tags = db.data.tags.filter((t) => t.id !== id);
 
   // Remove tag from all files

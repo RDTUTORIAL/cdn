@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
 import { deleteFromBlob } from "@/lib/storage";
 import { generateId, generateUniqueSlug } from "@/lib/utils";
 
 export const runtime = "nodejs";
+
+function canAccessFile(session: { userId: string; role: string }, file: { ownerId: string }): boolean {
+  return session.role === "admin" || file.ownerId === session.userId;
+}
 
 // GET single file
 export async function GET(
@@ -22,6 +27,10 @@ export async function GET(
 
   if (!file) {
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
+  }
+
+  if (!canAccessFile(session, file)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   return NextResponse.json({ file });
@@ -45,6 +54,10 @@ export async function PATCH(
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
   }
 
+  if (!canAccessFile(session, file)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await request.json();
   const allowedFields = [
     "name",
@@ -60,7 +73,11 @@ export async function PATCH(
     if (field in body) {
       const value = body[field];
       if (typeof value !== "undefined") {
-        (file as unknown as Record<string, unknown>)[field] = value;
+        if (field === "password" && value) {
+          (file as unknown as Record<string, unknown>)[field] = await bcrypt.hash(value, 10);
+        } else {
+          (file as unknown as Record<string, unknown>)[field] = value;
+        }
       }
     }
   }
@@ -111,6 +128,10 @@ export async function DELETE(
   }
 
   const file = db.data.files[fileIndex];
+
+  if (!canAccessFile(session, file)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   if (permanent) {
     // Delete from blob storage

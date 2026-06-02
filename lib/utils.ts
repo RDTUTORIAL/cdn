@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { randomBytes } from "crypto";
 import { lookup } from "mime-types";
 import { Image, Film, Music, FileText, File, Archive, BarChart } from "lucide-react";
 
@@ -98,9 +99,10 @@ export function isPreviewable(mimeType: string): boolean {
 
 export function generateApiKey(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = randomBytes(40);
   let result = "cdn_";
   for (let i = 0; i < 40; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(bytes[i] % chars.length);
   }
   return result;
 }

@@ -30,6 +30,10 @@ export async function GET(request: NextRequest) {
     return !f.isDeleted;
   });
 
+  if (session.role !== "admin") {
+    files = files.filter((f) => f.ownerId === session.userId);
+  }
+
   if (!showDeleted && folderId !== "all") {
     files = files.filter((f) => f.folderId === folderId);
   }
@@ -52,10 +56,13 @@ export async function GET(request: NextRequest) {
     files = files.filter((f) => f.isFavorited);
   }
 
-  // Sorting
+  // Whitelist for sort field
+  const sortableFields = new Set(["name", "size", "createdAt", "updatedAt", "downloadCount", "viewCount", "mimeType"]);
+  const safeSort = sortableFields.has(sort) ? sort : "createdAt";
+
   files.sort((a, b) => {
-    let valA: string | number = a[sort as keyof typeof a] as string | number;
-    let valB: string | number = b[sort as keyof typeof b] as string | number;
+    let valA: string | number = a[safeSort as keyof typeof a] as string | number;
+    let valB: string | number = b[safeSort as keyof typeof b] as string | number;
     if (typeof valA === "string") valA = valA.toLowerCase();
     if (typeof valB === "string") valB = valB.toLowerCase();
     if (valA < valB) return order === "asc" ? -1 : 1;
@@ -93,6 +100,11 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     const folderId = (formData.get("folderId") as string) || null;
     const isPublic = formData.get("isPublic") === "true";
+
+    // Validate folderId belongs to user
+    if (folderId && !db.data.folders.find((f) => f.id === folderId && f.ownerId === ownerId && !f.isDeleted)) {
+      return NextResponse.json({ error: "Folder tidak valid" }, { status: 400 });
+    }
 
     if (!file) {
       return NextResponse.json({ error: "File tidak ditemukan" }, { status: 400 });

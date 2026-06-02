@@ -109,6 +109,11 @@ export async function DELETE(
   const deletedUser = db.data.users[userIndex];
   db.data.users.splice(userIndex, 1);
 
+  db.data.files = db.data.files.filter((f) => f.ownerId !== id);
+  db.data.folders = db.data.folders.filter((f) => f.ownerId !== id);
+  db.data.tags = db.data.tags.filter((t) => t.ownerId !== id);
+  db.data.activityLog = db.data.activityLog.filter((a) => a.userId !== id);
+
   db.data.activityLog.unshift({
     id: generateId(),
     userId: session.userId,

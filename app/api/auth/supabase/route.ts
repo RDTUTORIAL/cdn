@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // The Supabase user is now authenticated.
-    // We store a simple token that our proxy.ts can verify.
+    // We store a simple token that our middleware can verify.
     const response = NextResponse.json({
       success: true,
       user: {

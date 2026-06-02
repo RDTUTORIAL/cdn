@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { getDb, saveDb } from "@/lib/db";
 import { isExpired } from "@/lib/utils";
 
@@ -27,7 +28,8 @@ export async function GET(
   // Check password
   if (file.password) {
     const pwdParam = request.nextUrl.searchParams.get("pwd");
-    if (!pwdParam || pwdParam !== file.password) {
+    const isCorrect = pwdParam && await bcrypt.compare(pwdParam, file.password).catch(() => false);
+    if (!pwdParam || !isCorrect) {
       // Return HTML page asking for password
       const html = `<!DOCTYPE html>
 <html lang="id">

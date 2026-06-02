@@ -28,10 +28,18 @@ async function ensureUploadsDir(): Promise<void> {
   }
 }
 
+function isPathSafe(userPath: string): boolean {
+  const resolved = join("/", userPath);
+  return !resolved.startsWith("/..") && !resolved.includes("/../");
+}
+
 async function localPut(
   file: File | Buffer,
   path: string
 ): Promise<UploadResult> {
+  if (!isPathSafe(path)) {
+    throw new Error("Path traversal detected");
+  }
   await ensureUploadsDir();
 
   const fullPath = join(UPLOADS_DIR, path);
@@ -63,6 +71,7 @@ async function localDelete(url: string): Promise<void> {
   try {
     // Extract the path from /uploads/...
     const relPath = url.replace(/^\/uploads\//, "");
+    if (!isPathSafe(relPath)) return;
     const fullPath = join(UPLOADS_DIR, relPath);
     if (existsSync(fullPath)) {
       await unlink(fullPath);
@@ -72,17 +81,27 @@ async function localDelete(url: string): Promise<void> {
   }
 }
 
+import { extname } from "path";
+const MIME_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
+  ".webp": "image/webp", ".svg": "image/svg+xml", ".pdf": "application/pdf",
+  ".mp4": "video/mp4", ".mp3": "audio/mpeg", ".zip": "application/zip",
+  ".txt": "text/plain", ".json": "application/json", ".html": "text/html",
+  ".css": "text/css", ".js": "application/javascript",
+};
+
 async function localHead(
   url: string
 ): Promise<{ url: string; size: number; contentType?: string } | null> {
   try {
     const relPath = url.replace(/^\/uploads\//, "");
+    if (!isPathSafe(relPath)) return null;
     const fullPath = join(UPLOADS_DIR, relPath);
     const info = await stat(fullPath);
     return {
       url,
       size: info.size,
-      contentType: undefined,
+      contentType: MIME_MAP[extname(url).toLowerCase()] || "application/octet-stream",
     };
   } catch {
     return null;

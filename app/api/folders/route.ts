@@ -18,6 +18,10 @@ export async function GET(request: NextRequest) {
   const db = await getDb();
   let folders = db.data.folders.filter((f) => !f.isDeleted);
 
+  if (session.role !== "admin") {
+    folders = folders.filter((f) => f.ownerId === session.userId);
+  }
+
   if (parentId !== null) {
     folders = folders.filter((f) => f.parentId === (parentId || null));
   }
@@ -39,6 +43,12 @@ export async function POST(request: NextRequest) {
   }
 
   const db = await getDb();
+
+  // Validate parentId belongs to user
+  if (parentId && !db.data.folders.find((f) => f.id === parentId && f.ownerId === session.userId && !f.isDeleted)) {
+    return NextResponse.json({ error: "Parent folder tidak valid" }, { status: 400 });
+  }
+
   const existingSlugs = db.data.folders.map((f) => f.slug);
   const slug = generateUniqueSlug(name, existingSlugs);
 
@@ -65,6 +75,9 @@ export async function POST(request: NextRequest) {
     targetName: name,
     timestamp: new Date().toISOString(),
   });
+  if (db.data.activityLog.length > 500) {
+    db.data.activityLog = db.data.activityLog.slice(0, 500);
+  }
 
   await saveDb();
   return NextResponse.json({ folder }, { status: 201 });

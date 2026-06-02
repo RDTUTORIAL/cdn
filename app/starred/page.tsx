@@ -30,6 +30,7 @@ export default function StarredPage() {
     })().catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error(err);
+      setLoading(false);
     });
 
     return () => {
@@ -86,6 +87,7 @@ export default function StarredPage() {
       )}
       <FilePreview file={preview} isOpen={!!preview} onClose={() => setPreview(null)} />
       <ShareModal
+        key={shareFile?.id}
         file={shareFile}
         isOpen={!!shareFile}
         onClose={() => setShareFile(null)}

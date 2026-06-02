@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = await getDb();
   const files = db.data.files.filter((f) => !f.isDeleted);

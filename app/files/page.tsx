@@ -127,7 +127,7 @@ export default function FilesPage() {
     const results = await Promise.allSettled(
       [...selected].map((id) => fetch(`/api/files/${id}`, { method: "DELETE" }))
     );
-    const failed = results.filter((r) => r.status === "rejected").length;
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
     if (failed > 0) {
       showToast(`${failed} file gagal dihapus`, "error");
     } else {
@@ -467,6 +467,7 @@ export default function FilesPage() {
 
       {/* Share Modal */}
       <ShareModal
+        key={shareFile?.id}
         file={shareFile}
         isOpen={!!shareFile}
         onClose={() => setShareFile(null)}
