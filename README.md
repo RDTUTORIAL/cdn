@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CDN Panel
 
-## Getting Started
+Panel administrasi CDN untuk mengelola dan berbagi file. Dibangun dengan Next.js 16, TypeScript, dan React 19.
 
-First, run the development server:
+## Fitur
+
+- Upload, download, dan manage file
+- Folder & tagging system
+- Starred / favorites
+- Trash / recycle bin
+- Public share links (dengan optional password & expiry)
+- Role-based users (admin, editor, viewer)
+- API Keys untuk integrasi eksternal
+- Dashboard analytics & statistik
+- Dark mode
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Bahasa:** TypeScript
+- **UI:** Custom CSS + Lucide icons
+- **Database:** Lowdb (local) / Supabase PostgreSQL
+- **Storage:** Vercel Blob / local filesystem
+- **Auth:** JWT (jose) + bcrypt
+
+## Mulai Cepat
 
 ```bash
+# Clone & install
+npm install
+
+# Siapkan environment
+cp .env.example .env
+# Edit .env sesuai kebutuhan
+
+# Jalankan development
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Default Login
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Username | Password  | Role  |
+|----------|-----------|-------|
+| `admin`  | `admin`   | admin |
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JWT_SECRET` | Ya | Secret key untuk JWT token |
+| `BLOB_READ_WRITE_TOKEN` | Opsional | Token Vercel Blob. Jika tidak di-set, file disimpan lokal di `public/uploads/` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Opsional | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Opsional | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Opsional | Supabase service role key (untuk admin operations) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Default pake **Lowdb** (JSON file di `data/db.json`). Untuk production, disarankan pake **Supabase**:
 
-## Deploy on Vercel
+1. Buat project di [supabase.com](https://supabase.com)
+2. Isi `.env` dengan credential Supabase
+3. Jalankan SQL di `lib/supabase/schema.sql` ke Supabase SQL Editor
+4. Akses endpoint `POST /api/migrate` untuk migrasi data dari lowdb
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Struktur
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/          Routes & API
+components/  UI Components
+lib/          Logic & utilities
+  auth.ts     JWT auth
+  db.ts       Lowdb adapter
+  db-supabase.ts  Supabase adapter
+  storage.ts  File storage abstraction
+  supabase/   Supabase config & schema
+public/       Static assets
+data/         Local database (gitignored)
+```
