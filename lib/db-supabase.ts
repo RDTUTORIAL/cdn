@@ -193,11 +193,41 @@ export async function writeToSupabase(
   }
 }
 
+async function deleteRowsMissingFromSnapshot(
+  table: string,
+  keepIds: Set<string>
+): Promise<void> {
+  const { data, error } = await supabase.from(table).select();
+  if (error) throw error;
+
+  const staleRows = (data || []).filter((row) => {
+    const id = row.id;
+    return typeof id === "string" && !keepIds.has(id);
+  });
+
+  for (const row of staleRows) {
+    const { error: deleteErr } = await supabase.from(table).delete({ id: row.id });
+    if (deleteErr) throw deleteErr;
+  }
+}
+
+async function pruneSupabaseToSnapshot(data: Data): Promise<void> {
+  // Child tables first, then parent users, so foreign keys/cascades stay predictable.
+  await deleteRowsMissingFromSnapshot("files", new Set(data.files.map((f) => f.id)));
+  await deleteRowsMissingFromSnapshot("activity_log", new Set(data.activityLog.map((a) => a.id)));
+  await deleteRowsMissingFromSnapshot("tags", new Set(data.tags.map((t) => t.id)));
+  await deleteRowsMissingFromSnapshot("folders", new Set(data.folders.map((f) => f.id)));
+  await deleteRowsMissingFromSnapshot("users", new Set(data.users.map((u) => u.id)));
+}
+
 /**
  * Migrate data from lowdb JSON to Supabase.
  * Reads the lowdb db.json and upserts all records into Supabase tables.
  */
-export async function migrateToSupabase(data: Data): Promise<boolean> {
+export async function migrateToSupabase(
+  data: Data,
+  options: { prune?: boolean } = {}
+): Promise<boolean> {
   if (!isSupabaseAvailable()) {
     console.error("[supabase] Cannot migrate — service role key not set.");
     return false;
@@ -205,17 +235,38 @@ export async function migrateToSupabase(data: Data): Promise<boolean> {
 
   try {
     // Users
-    const { error: userErr } = await supabase.from("users").upsert(
-      data.users.map((u) => ({
-        id: u.id,
-        username: u.username,
-        password: u.password,
-        role: u.role,
-        created_at: u.createdAt,
-        api_keys: u.apiKeys,
-      }))
-    );
-    if (userErr) throw userErr;
+    if (data.users.length > 0) {
+      const { error: userErr } = await supabase.from("users").upsert(
+        data.users.map((u) => ({
+          id: u.id,
+          username: u.username,
+          password: u.password,
+          role: u.role,
+          created_at: u.createdAt,
+          api_keys: u.apiKeys,
+        }))
+      );
+      if (userErr) throw userErr;
+    }
+
+    // Folders
+    if (data.folders.length > 0) {
+      const { error: foldErr } = await supabase.from("folders").upsert(
+        data.folders.map((f) => ({
+          id: f.id,
+          name: f.name,
+          slug: f.slug,
+          parent_id: f.parentId,
+          owner_id: f.ownerId,
+          is_public: f.isPublic,
+          is_deleted: f.isDeleted,
+          deleted_at: f.deletedAt,
+          created_at: f.createdAt,
+          updated_at: f.updatedAt,
+        }))
+      );
+      if (foldErr) throw foldErr;
+    }
 
     // Files
     if (data.files.length > 0) {
@@ -244,25 +295,6 @@ export async function migrateToSupabase(data: Data): Promise<boolean> {
         }))
       );
       if (fileErr) throw fileErr;
-    }
-
-    // Folders
-    if (data.folders.length > 0) {
-      const { error: foldErr } = await supabase.from("folders").upsert(
-        data.folders.map((f) => ({
-          id: f.id,
-          name: f.name,
-          slug: f.slug,
-          parent_id: f.parentId,
-          owner_id: f.ownerId,
-          is_public: f.isPublic,
-          is_deleted: f.isDeleted,
-          deleted_at: f.deletedAt,
-          created_at: f.createdAt,
-          updated_at: f.updatedAt,
-        }))
-      );
-      if (foldErr) throw foldErr;
     }
 
     // Tags
@@ -305,6 +337,10 @@ export async function migrateToSupabase(data: Data): Promise<boolean> {
       if (actErr) throw actErr;
     }
 
+    if (options.prune) {
+      await pruneSupabaseToSnapshot(data);
+    }
+
     console.log("[supabase] Migration complete!");
     return true;
   } catch (err) {
@@ -331,7 +367,7 @@ export class SupabaseAdapter implements Adapter<Data> {
       console.warn("[supabase] write() called but Supabase is not configured");
       return;
     }
-    const ok = await migrateToSupabase(data);
+    const ok = await migrateToSupabase(data, { prune: true });
     if (!ok) {
       console.error("[supabase] Adapter write failed");
     }

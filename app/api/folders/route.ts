@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageContent } from "@/lib/permissions";
 import { generateId, generateUniqueSlug } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canManageContent(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { name, parentId } = await request.json();

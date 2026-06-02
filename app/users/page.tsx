@@ -443,7 +443,7 @@ export default function UsersPage() {
                 Tindakan ini tidak bisa dibatalkan
               </div>
               <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                User <strong>{deleteUser?.username}</strong> akan dihapus permanen. File yang diupload oleh user ini akan tetap ada.
+                User <strong>{deleteUser?.username}</strong> akan dihapus permanen bersama file, folder, tag, dan API key miliknya.
               </div>
             </div>
           </div>

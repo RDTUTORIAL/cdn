@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ export async function PATCH(
   const folder = db.data.folders.find((f) => f.id === id);
   if (!folder) return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
 
-  if (session.role !== "admin" && folder.ownerId !== session.userId) {
+  if (!canManageOwnedContent(session, folder.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -49,7 +50,7 @@ export async function DELETE(
   const folder = db.data.folders.find((f) => f.id === id);
   if (!folder) return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
 
-  if (session.role !== "admin" && folder.ownerId !== session.userId) {
+  if (!canManageOwnedContent(session, folder.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

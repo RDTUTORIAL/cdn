@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageContent, canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canManageContent(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { name, color } = await request.json();
   if (!name?.trim()) {
@@ -46,7 +48,7 @@ export async function DELETE(request: NextRequest) {
   const db = await getDb();
   const tag = db.data.tags.find((t) => t.id === id);
   if (!tag) return NextResponse.json({ error: "Tag tidak ditemukan" }, { status: 404 });
-  if (session.role !== "admin" && tag.ownerId !== session.userId) {
+  if (!canManageOwnedContent(session, tag.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   db.data.tags = db.data.tags.filter((t) => t.id !== id);

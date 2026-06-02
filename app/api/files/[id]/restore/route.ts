@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageOwnedContent } from "@/lib/permissions";
 import { generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -23,7 +24,7 @@ export async function POST(
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
   }
 
-  if (session.role !== "admin" && file.ownerId !== session.userId) {
+  if (!canManageOwnedContent(session, file.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

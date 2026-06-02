@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageOwnedContent } from "@/lib/permissions";
 import { deleteFromBlob } from "@/lib/storage";
 import { generateId, generateUniqueSlug } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ export async function PATCH(
     return NextResponse.json({ error: "File tidak ditemukan" }, { status: 404 });
   }
 
-  if (!canAccessFile(session, file)) {
+  if (!canManageOwnedContent(session, file.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -129,7 +130,7 @@ export async function DELETE(
 
   const file = db.data.files[fileIndex];
 
-  if (!canAccessFile(session, file)) {
+  if (!canManageOwnedContent(session, file.ownerId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

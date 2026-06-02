@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageContent } from "@/lib/permissions";
 import { uploadToBlob, generateFilePath } from "@/lib/storage";
 import { generateId, generateUniqueSlug, getMimeType, generateSlug } from "@/lib/utils";
 
@@ -79,17 +80,24 @@ export async function POST(request: NextRequest) {
 
   // Also allow API key auth
   let ownerId = session?.userId;
+  let ownerRole = session?.role;
   if (!ownerId) {
     const apiKey = request.headers.get("x-api-key");
     if (apiKey) {
       const db = await getDb();
       const user = db.data.users.find((u) => u.apiKeys.includes(apiKey));
-      if (user) ownerId = user.id;
+      if (user) {
+        ownerId = user.id;
+        ownerRole = user.role;
+      }
     }
   }
 
   if (!ownerId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!ownerRole || !canManageContent(ownerRole)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const db = await getDb();

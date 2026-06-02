@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { deleteFromBlob } from "@/lib/storage";
 import { generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -107,6 +108,10 @@ export async function DELETE(
   }
 
   const deletedUser = db.data.users[userIndex];
+  const filesToDelete = db.data.files.filter((f) => f.ownerId === id);
+
+  await Promise.all(filesToDelete.map((file) => deleteFromBlob(file.blobUrl)));
+
   db.data.users.splice(userIndex, 1);
 
   db.data.files = db.data.files.filter((f) => f.ownerId !== id);

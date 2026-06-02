@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/db";
+import { canManageContent } from "@/lib/permissions";
 import { generateApiKey, generateId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canManageContent(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = await getDb();
   const user = db.data.users.find((u) => u.id === session.userId);
@@ -19,6 +21,7 @@ export async function GET() {
 export async function POST() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canManageContent(session.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = await getDb();
   const user = db.data.users.find((u) => u.id === session.userId);

@@ -15,6 +15,14 @@ const protectedPaths = [
   "/users",
 ];
 
+function getSafeRedirect(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return value;
+}
+
 async function verifyAuth(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) return false;
@@ -41,7 +49,7 @@ export async function middleware(request: NextRequest) {
 
   // If already logged in and visiting login page, redirect to dashboard
   if (pathname === "/login" && isAuthenticated) {
-    const redirect = request.nextUrl.searchParams.get("redirect") || "/dashboard";
+    const redirect = getSafeRedirect(request.nextUrl.searchParams.get("redirect"));
     return NextResponse.redirect(new URL(redirect, request.url));
   }
 
