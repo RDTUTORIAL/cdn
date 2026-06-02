@@ -44,3 +44,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ai / agent / vibe coding directories
+.claude/
+.claude-code/
+.codex/
+.openbcode/
+.antigravity/
+.vibe/
+.cursor/
+.aider/
+.roo/
+.aug/
+.continue/
+.agent/
+.vscode/
+
+# ai context / memory / cache files
+*.claude-cache
+*.codex-cache
+*.agent-cache
+*.vibe-cache
+context/
+.claude-cache/
+.codex-cache/
+.agent-cache/
+.vibe-cache/
